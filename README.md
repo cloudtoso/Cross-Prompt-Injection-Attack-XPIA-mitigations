@@ -15,6 +15,15 @@ This repository contains documentation, technical analysis, and presentation mat
 ### Presentation
 - **XPIA-Agent365-Security-Response.pptx** — 19-slide customer-facing presentation deck covering XPIA detection capabilities, gaps, workarounds, and recommended architecture
 
+### Demo Playbook
+- **xpia-demo-playbook.md** — Comprehensive 5-station demo playbook with step-by-step instructions for demonstrating XPIA detection, validation, and response capabilities. Covers: Station 1 (Prompt Shields), Station 2 (DLP Custom SIT), Station 3 (Exchange Mail Flow Rules), Station 4 (Copilot for Security KQL), Station 5 (Executive Briefing + Governance Maturity Model)
+- **xpia-demo-playbook.docx** — Word version of the demo playbook for easy sharing and editing
+- **xpia-demo-playbook.pdf** — PDF version of the demo playbook for distribution and printing
+
+### Demo Automation
+- **Invoke-XPIADemoSetup.ps1** — 8-phase PowerShell pre-demo automation script that automates tenant configuration for the demo: module installation, tenant connectivity, Content Safety API validation, custom SIT creation, Exchange mail flow rules, test email templates, DLP policy creation, and validation summary
+- **xpia-demo-setup-README.md** — Companion guide for the setup script with prerequisites, usage instructions, and phase descriptions
+
 ## Key Topics
 - XPIA detection with Azure AI Prompt Shields
 - Microsoft Defender XDR integration and alerting
@@ -24,6 +33,7 @@ This repository contains documentation, technical analysis, and presentation mat
 - Insider risk scenarios and document-based XPIA vectors
 - EchoLeak (CVE-2025-32711) implications
 - Product gap analysis and Microsoft roadmap recommendations
+- Demo pre-staging automation via PowerShell
 
 ## Architecture
 The recommended detection architecture uses a layered approach:
