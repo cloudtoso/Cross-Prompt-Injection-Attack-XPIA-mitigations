@@ -158,6 +158,7 @@ function Write-Summary {
             "FAIL"    { $color = "Red";    $icon = "[FAIL]"    }
             "SKIPPED" { $color = "Yellow"; $icon = "[SKIP]"    }
             "WARN"    { $color = "Yellow"; $icon = "[WARN]"    }
+            "MANUAL"  { $color = "Cyan";   $icon = "[TODO]"    }
             default   { $color = "White";  $icon = "[ ?? ]"    }
         }
         $line = "  $icon  $key"
