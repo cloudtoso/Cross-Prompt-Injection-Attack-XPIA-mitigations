@@ -1,5 +1,7 @@
 # Cross/Indirect Prompt Injection Attack (XPIA) Mitigations
 
+Author: Christian Williams
+
 ## Overview
 This repository contains documentation, technical analysis, and presentation materials for detecting, validating, responding to, and preventing Cross/Indirect Prompt Injection Attacks (XPIA) in Microsoft Agent 365 and M365 Copilot environments.
 
