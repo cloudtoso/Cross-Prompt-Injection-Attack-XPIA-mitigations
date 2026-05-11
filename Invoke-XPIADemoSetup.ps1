@@ -269,6 +269,14 @@ if ($ValidateOnly) {
       <Pattern confidenceLevel="65">
         <IdMatch idRef="xpia_medium_confidence"/>
       </Pattern>
+      <LocalizedStringsAndRules>
+        <LocalizedStrings>
+          <Resource idRef="$entityId">
+            <Name default="true" langcode="en-us">XPIA Injection Pattern</Name>
+            <Description default="true" langcode="en-us">Detects cross-prompt injection attack patterns used in XPIA scenarios.</Description>
+          </Resource>
+        </LocalizedStrings>
+      </LocalizedStringsAndRules>
     </Entity>
     <Regex id="xpia_high_confidence">
       (?i)(ignore\s+(all\s+)?previous\s+instructions|you\s+are\s+now\s+a|system\s*prompt\s*:|\[INST\]|\[\/INST\]|disregard\s+(the\s+)?(above|previous)|new\s+instructions\s*:)
@@ -407,6 +415,17 @@ if ($ValidateOnly) {
 
                 Write-Host "  [OK] DLP policy created" -ForegroundColor Green
 
+                # MANUAL STEP: The New-DlpCompliancePolicy cmdlet does not yet support
+                # adding "Microsoft Copilot experiences" as a location via PowerShell.
+                # Per playbook §2.5, this location must be added manually.
+                Write-Host ""
+                Write-Host "  [ACTION REQUIRED] Add Copilot experience location manually:" -ForegroundColor Yellow
+                Write-Host "    1. Go to compliance.microsoft.com -> Data loss prevention -> Policies" -ForegroundColor Yellow
+                Write-Host "    2. Edit policy '$dlpPolicyName'" -ForegroundColor Yellow
+                Write-Host "    3. Under Locations, enable 'Microsoft Copilot experiences'" -ForegroundColor Yellow
+                Write-Host "    4. Also enable 'Devices' if endpoint DLP is applicable" -ForegroundColor Yellow
+                Write-Host ""
+
                 # High-confidence block rule
                 New-DlpComplianceRule -Name "XPIA High Confidence Block" `
                     -Policy $dlpPolicyName `
@@ -535,57 +554,37 @@ Lisa
         Write-Host "  [WhatIf] Would also CC $SecondaryRecipientEmail for campaign detection" -ForegroundColor Magenta
         Set-PhaseResult -Number 5 -Name "Test Emails" -Status "SKIPPED" -Detail "WhatIf mode"
     } else {
+        # Output email templates for manual sending via OWA.
+        # Send-MailMessage was removed because smtp.office365.com:587 requires
+        # -Credential (never provided) and the cmdlet is obsolete in PS7.
         Write-Host "  [!!] WARNING: Test emails trigger the mail flow rule. Allow ~15 min" -ForegroundColor Yellow
         Write-Host "       after sending for alerts to propagate before the demo." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Send the following emails manually from $TestSenderEmail via OWA or Outlook." -ForegroundColor Cyan
+        Write-Host "  Recipients: $TestRecipientEmail" -ForegroundColor Cyan
+        if ($SecondaryRecipientEmail) {
+            Write-Host "  Also send each to: $SecondaryRecipientEmail (for campaign detection)" -ForegroundColor Cyan
+        }
+        Write-Host ""
 
-        $sentCount = 0
-        $failCount = 0
+        $templateNum = 0
         foreach ($payload in $payloads) {
-            for ($i = 1; $i -le $TestEmailCount; $i++) {
-                try {
-                    # Send to primary recipient
-                    Send-MailMessage -From $TestSenderEmail `
-                        -To $TestRecipientEmail `
-                        -Subject $payload.Subject `
-                        -Body $payload.Body `
-                        -BodyAsHtml `
-                        -SmtpServer "smtp.office365.com" `
-                        -Port 587 `
-                        -UseSsl `
-                        -ErrorAction Stop
-                    $sentCount++
-                    Write-Host "  [OK] Sent: $($payload.Name) -> $TestRecipientEmail" -ForegroundColor Green
-
-                    # Also send to secondary recipient for campaign detection
-                    if ($SecondaryRecipientEmail) {
-                        Send-MailMessage -From $TestSenderEmail `
-                            -To $SecondaryRecipientEmail `
-                            -Subject $payload.Subject `
-                            -Body $payload.Body `
-                            -BodyAsHtml `
-                            -SmtpServer "smtp.office365.com" `
-                            -Port 587 `
-                            -UseSsl `
-                            -ErrorAction Stop
-                        $sentCount++
-                        Write-Host "  [OK] Sent: $($payload.Name) -> $SecondaryRecipientEmail" -ForegroundColor Green
-                    }
-                } catch {
-                    Write-Host "  [!!] Failed to send '$($payload.Name)': $($_.Exception.Message)" -ForegroundColor Red
-                    Write-Host "  [!!] Tip: Send-MailMessage requires SMTP relay access. You may need" -ForegroundColor Yellow
-                    Write-Host "       to send test emails manually from $TestSenderEmail via OWA." -ForegroundColor Yellow
-                    $failCount++
-                }
-            }
+            $templateNum++
+            Write-Host "  ── Email Template $templateNum`: $($payload.Name) ──" -ForegroundColor White
+            Write-Host "  To:      $TestRecipientEmail" -ForegroundColor Gray
+            Write-Host "  Subject: $($payload.Subject)" -ForegroundColor Gray
+            Write-Host "  Body:" -ForegroundColor Gray
+            Write-Host ""
+            # Strip HTML tags for console-friendly output
+            $plainBody = $payload.Body -replace '<[^>]+>', ''
+            Write-Host $plainBody -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host "  ── End Template $templateNum ──" -ForegroundColor White
+            Write-Host ""
         }
 
-        if ($failCount -eq 0 -and $sentCount -gt 0) {
-            Set-PhaseResult -Number 5 -Name "Test Emails" -Status "PASS" -Detail "$sentCount email(s) sent"
-        } elseif ($sentCount -gt 0) {
-            Set-PhaseResult -Number 5 -Name "Test Emails" -Status "WARN" -Detail "$sentCount sent, $failCount failed"
-        } else {
-            Set-PhaseResult -Number 5 -Name "Test Emails" -Status "FAIL" -Detail "All sends failed — send manually via OWA"
-        }
+        Write-Host "  Copy-paste the above into OWA ($TestEmailCount time(s) each)." -ForegroundColor Cyan
+        Set-PhaseResult -Number 5 -Name "Test Emails" -Status "MANUAL" -Detail "$($payloads.Count) email template(s) output for manual sending"
     }
 }
 
@@ -726,9 +725,9 @@ EmailEvents
 
 Write-PhaseBanner -Number 7 -Description "Test Content Safety API"
 
-if ($ValidateOnly) {
-    # Validation-only still checks API connectivity
-} elseif (-not $ContentSafetyEndpoint -or -not $ContentSafetyKey) {
+# Phase 7 runs in both normal and ValidateOnly modes — API connectivity
+# is always worth verifying, and it makes no changes to the environment.
+if (-not $ContentSafetyEndpoint -or -not $ContentSafetyKey) {
     Write-Host "  [!!] ContentSafetyEndpoint and/or ContentSafetyKey not provided." -ForegroundColor Yellow
     Write-Host "       Skipping API test. Provide these params to validate connectivity." -ForegroundColor Yellow
     Set-PhaseResult -Number 7 -Name "Content Safety API" -Status "SKIPPED" -Detail "No endpoint/key provided"
@@ -958,6 +957,7 @@ if ($SkipValidation -and -not $ValidateOnly) {
 
 if (-not $WhatIfPreference) {
     try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}
+    try { Disconnect-IPPSSession -Confirm:$false -ErrorAction SilentlyContinue } catch {}
 }
 
 # ============================================================
